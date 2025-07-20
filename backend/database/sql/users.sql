@@ -1,3 +1,7 @@
+-- Drop existing tables that might conflict
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS barangay_officials;
+
 -- Users table
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
@@ -25,22 +29,8 @@ CREATE TABLE users (
     deleted_at TEXT
 );
 
--- Personal access tokens table
-CREATE TABLE personal_access_tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tokenable_type TEXT NOT NULL,
-    tokenable_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    token TEXT UNIQUE NOT NULL,
-    abilities TEXT,
-    last_used_at TEXT,
-    expires_at TEXT,
-    created_at TEXT,
-    updated_at TEXT
-);
-
--- Residents table
-CREATE TABLE residents (
+-- Create missing tables only if they don't exist
+CREATE TABLE IF NOT EXISTS residents (
     id TEXT PRIMARY KEY,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -63,8 +53,7 @@ CREATE TABLE residents (
     deleted_at TEXT
 );
 
--- Households table
-CREATE TABLE households (
+CREATE TABLE IF NOT EXISTS households (
     id TEXT PRIMARY KEY,
     household_number TEXT UNIQUE,
     address TEXT,
@@ -101,123 +90,11 @@ CREATE TABLE barangay_officials (
     deleted_at TEXT
 );
 
--- Appointments table
-CREATE TABLE appointments (
-    id TEXT PRIMARY KEY,
-    resident_id TEXT,
-    purpose TEXT,
-    appointment_date DATE,
-    appointment_time TIME,
-    status TEXT DEFAULT 'PENDING',
-    notes TEXT,
-    assigned_to TEXT,
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Blotters table  
-CREATE TABLE blotters (
-    id TEXT PRIMARY KEY,
-    incident_type TEXT,
-    incident_date DATE,
-    incident_time TIME,
-    location TEXT,
-    complainant_id TEXT,
-    respondent_info TEXT,
-    description TEXT,
-    status TEXT DEFAULT 'PENDING',
-    assigned_officer TEXT,
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Complaints table
-CREATE TABLE complaints (
-    id TEXT PRIMARY KEY,
-    complainant_id TEXT,
-    complaint_type TEXT,
-    subject TEXT,
-    description TEXT,
-    status TEXT DEFAULT 'PENDING',
-    priority TEXT DEFAULT 'MEDIUM',
-    assigned_to TEXT,
-    resolution TEXT,
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Suggestions table
-CREATE TABLE suggestions (
-    id TEXT PRIMARY KEY,
-    resident_id TEXT,
-    title TEXT,
-    description TEXT,
-    category TEXT,
-    status TEXT DEFAULT 'PENDING',
-    response TEXT,
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Tickets table
-CREATE TABLE tickets (
-    id TEXT PRIMARY KEY,
-    ticket_number TEXT UNIQUE,
-    resident_id TEXT,
-    subject TEXT,
-    description TEXT,
-    category TEXT,
-    priority TEXT DEFAULT 'MEDIUM',
-    status TEXT DEFAULT 'OPEN',
-    assigned_to TEXT,
-    resolution TEXT,
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Agendas table
-CREATE TABLE agendas (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    meeting_date DATE,
-    meeting_time TIME,
-    location TEXT,
-    status TEXT DEFAULT 'SCHEDULED',
-    created_by TEXT,
-    updated_by TEXT,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT
-);
-
--- Settings table
-CREATE TABLE settings (
-    id TEXT PRIMARY KEY,
-    key TEXT UNIQUE NOT NULL,
-    value TEXT,
-    description TEXT,
-    created_at TEXT,
-    updated_at TEXT
-);
+-- Add missing columns to existing tables if they don't exist
+-- (SQLite doesn't support IF NOT EXISTS for columns, so we'll use OR IGNORE)
 
 -- Insert admin user
-INSERT INTO users (
+INSERT OR REPLACE INTO users (
     id, first_name, last_name, email, phone, username, password, 
     role, department, position, employee_id, is_active, is_verified,
     email_verified_at, created_at, updated_at
@@ -229,8 +106,8 @@ INSERT INTO users (
     1, 1, datetime('now'), datetime('now'), datetime('now')
 );
 
--- Insert some sample barangay officials
-INSERT INTO barangay_officials (
+-- Insert sample barangay officials
+INSERT OR IGNORE INTO barangay_officials (
     id, position, first_name, last_name, status, 
     term_start, term_end, created_at, updated_at
 ) VALUES 
@@ -238,8 +115,8 @@ INSERT INTO barangay_officials (
 ('official-002', 'BARANGAY_SECRETARY', 'Ana', 'Rodriguez', 'ACTIVE', '2023-01-01', '2026-12-31', datetime('now'), datetime('now')),
 ('official-003', 'BARANGAY_TREASURER', 'Roberto', 'Mendoza', 'ACTIVE', '2023-01-01', '2026-12-31', datetime('now'), datetime('now'));
 
--- Insert basic settings
-INSERT INTO settings (id, key, value, description, created_at, updated_at) VALUES 
+-- Insert basic settings into existing settings table
+INSERT OR IGNORE INTO settings (id, "key", value, description, created_at, updated_at) VALUES 
 ('setting-001', 'barangay_name', 'Barangay Sikatuna Village', 'Official barangay name', datetime('now'), datetime('now')),
 ('setting-002', 'barangay_code', 'BSV-001', 'Barangay code', datetime('now'), datetime('now')),
 ('setting-003', 'contact_number', '+63-2-1234-5678', 'Official contact number', datetime('now'), datetime('now'));
