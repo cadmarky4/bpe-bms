@@ -28,11 +28,17 @@ WORKDIR /var/www/html
 # Copy existing application directory contents
 COPY . .
 
+# Create SQLite database file
+RUN touch database/database.sqlite && chmod 777 database/database.sqlite
+
 # Set composer environment variable
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader
+
+# Run migrations after composer install
+RUN php artisan migrate --force || true
 
 # Change ownership and permissions
 RUN chown -R www-data:www-data /var/www/html \
