@@ -21,9 +21,9 @@ COPY . .
 # Remove problematic migration
 RUN rm -f database/migrations/2025_07_11_000000_remove_house_number_from_households_table.php || true
 
-# Create production .env
+# Create production .env with proper quoting
 RUN printf '%s\n' \
-    'APP_NAME=Brgy. Sikatuna Village IMS' \
+    'APP_NAME="Brgy Sikatuna Village IMS"' \
     'APP_ENV=production' \
     'APP_KEY=base64:3gGQ4QLVbL3hl0JBcLZBUGWte2eOuKilirRHIPuOOFM=' \
     'APP_DEBUG=false' \
@@ -33,7 +33,8 @@ RUN printf '%s\n' \
     'SESSION_DRIVER=file' \
     'CACHE_STORE=file' \
     'QUEUE_CONNECTION=sync' \
-    'LOG_CHANNEL=stderr' > .env
+    'LOG_CHANNEL=stderr' \
+    'LOG_LEVEL=error' > .env
 
 # Setup database
 RUN touch database/database.sqlite && chmod 777 database/database.sqlite
@@ -48,7 +49,6 @@ RUN composer install --no-dev --no-scripts --no-autoloader && \
 # Create users table
 RUN sqlite3 database/database.sqlite 'DROP TABLE IF EXISTS users;'
 
-# Create table with single command
 RUN sqlite3 database/database.sqlite 'CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, middle_name TEXT, phone TEXT, role TEXT NOT NULL, department TEXT NOT NULL, position TEXT, employee_id TEXT, is_active INTEGER DEFAULT 1, is_verified INTEGER DEFAULT 0, notes TEXT, resident_id TEXT, created_by TEXT, updated_by TEXT, last_login_at TEXT, email_verified_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT);'
 
 # Create personal_access_tokens table
