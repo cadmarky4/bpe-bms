@@ -18,6 +18,9 @@ WORKDIR /var/www/html
 # Copy application
 COPY . .
 
+# Remove problematic migration
+RUN rm -f database/migrations/2025_07_11_000000_remove_house_number_from_households_table.php || true
+
 # Create production .env with proper quoting
 RUN printf '%s\n' \
     'APP_NAME="Brgy Sikatuna Village IMS"' \
@@ -43,18 +46,16 @@ RUN composer install --no-dev --no-scripts --no-autoloader && \
     composer dump-autoload --optimize --no-dev && \
     php artisan package:discover --ansi || true
 
-# Run all migrations except the problematic one
-RUN ls -la database/migrations/
+# Create users table
+RUN sqlite3 database/database.sqlite 'DROP TABLE IF EXISTS users;'
 
-# Remove problematic migration and run all others
-RUN rm -f database/migrations/2025_07_11_000000_remove_house_number_from_households_table.php && \
-    php artisan migrate --force --verbose
+RUN sqlite3 database/database.sqlite 'CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, first_name TEXT NOT NULL, last_name TEXT NOT NULL, middle_name TEXT, phone TEXT, role TEXT NOT NULL, department TEXT NOT NULL, position TEXT, employee_id TEXT, is_active INTEGER DEFAULT 1, is_verified INTEGER DEFAULT 0, notes TEXT, resident_id TEXT, created_by TEXT, updated_by TEXT, last_login_at TEXT, email_verified_at TEXT, remember_token TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT);'
 
-# Run seeders to populate data
-RUN php artisan db:seed --class=UserSeeder --force || echo "UserSeeder failed"
+# Create personal_access_tokens table
+RUN sqlite3 database/database.sqlite 'CREATE TABLE personal_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, tokenable_type TEXT NOT NULL, tokenable_id TEXT NOT NULL, name TEXT NOT NULL, token TEXT UNIQUE NOT NULL, abilities TEXT, last_used_at TEXT, expires_at TEXT, created_at TEXT, updated_at TEXT);'
 
-# Verify tables were created
-RUN sqlite3 database/database.sqlite ".tables"
+# Create admin user
+RUN sqlite3 database/database.sqlite "INSERT INTO users (id, username, email, password, first_name, last_name, role, department, is_active, is_verified, email_verified_at, created_at, updated_at) VALUES ('admin-001', 'admin', 'admin@sikatuna.gov.ph', '\$2y\$12\$/iYJFd3zTUwMKUV/q8swxOc0GZ/q04dAj8gn8IXJxCN1NMFPHO4Va', 'Admin', 'User', 'SUPER_ADMIN', 'ADMINISTRATION', 1, 1, datetime('now'), datetime('now'), datetime('now'));"
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html && \
