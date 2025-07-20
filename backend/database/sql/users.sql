@@ -90,9 +90,6 @@ CREATE TABLE barangay_officials (
     deleted_at TEXT
 );
 
--- Add missing columns to existing tables if they don't exist
--- (SQLite doesn't support IF NOT EXISTS for columns, so we'll use OR IGNORE)
-
 -- Insert admin user
 INSERT OR REPLACE INTO users (
     id, first_name, last_name, email, phone, username, password, 
@@ -114,9 +111,3 @@ INSERT OR IGNORE INTO barangay_officials (
 ('official-001', 'BARANGAY_CAPTAIN', 'Maria', 'Santos', 'ACTIVE', '2023-01-01', '2026-12-31', datetime('now'), datetime('now')),
 ('official-002', 'BARANGAY_SECRETARY', 'Ana', 'Rodriguez', 'ACTIVE', '2023-01-01', '2026-12-31', datetime('now'), datetime('now')),
 ('official-003', 'BARANGAY_TREASURER', 'Roberto', 'Mendoza', 'ACTIVE', '2023-01-01', '2026-12-31', datetime('now'), datetime('now'));
-
--- Insert basic settings into existing settings table
-INSERT OR IGNORE INTO settings (id, "key", value, description, created_at, updated_at) VALUES 
-('setting-001', 'barangay_name', 'Barangay Sikatuna Village', 'Official barangay name', datetime('now'), datetime('now')),
-('setting-002', 'barangay_code', 'BSV-001', 'Barangay code', datetime('now'), datetime('now')),
-('setting-003', 'contact_number', '+63-2-1234-5678', 'Official contact number', datetime('now'), datetime('now'));
