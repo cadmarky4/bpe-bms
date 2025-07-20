@@ -207,6 +207,11 @@ class Resident extends Model implements Auditable
 
     public function getCivilStatusDisplayAttribute(): string
     {
+        // Handle null or empty civil_status
+        if (empty($this->civil_status) || is_null($this->civil_status)) {
+            return 'Not Specified';
+        }
+
         $statusMap = [
             'SINGLE' => 'Single',
             'LIVE_IN' => 'Live-in',
@@ -218,7 +223,7 @@ class Resident extends Model implements Auditable
             'PREFER_NOT_TO_SAY' => 'Prefer not to say',
         ];
 
-        return $statusMap[$this->civil_status] ?? $this->civil_status;
+        return $statusMap[$this->civil_status] ?? ($this->civil_status ?: 'Not Specified');
     }
 
     /**
