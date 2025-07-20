@@ -11,9 +11,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     sqlite3 \
     libsqlite3-dev \
-    libzip-dev \
-    nodejs \
-    npm && \
+    libzip-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -31,7 +29,7 @@ COPY . .
 # Remove problematic files
 RUN rm -f database/migrations/2025_07_11_000000_remove_house_number_from_households_table.php || true
 
-# Create basic .env first (needed for package discovery)
+# Create basic .env first
 RUN echo "APP_NAME=Laravel" > .env && \
     echo "APP_ENV=production" >> .env && \
     echo "APP_KEY=base64:placeholder" >> .env && \
@@ -46,26 +44,24 @@ RUN touch database/database.sqlite && chmod 777 database/database.sqlite
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# Install composer dependencies without scripts first
-RUN composer install --no-dev --no-scripts --no-autoloader
+# Install composer dependencies
+RUN composer install --no-dev --no-scripts --no-autoloader && \
+    composer dump-autoload --optimize --no-dev
 
-# Generate autoloader and run scripts separately
-RUN composer dump-autoload --optimize --no-dev
-
-# Generate proper app key
+# Generate app key
 RUN php artisan key:generate --force
 
-# Update .env with proper production settings
+# Update .env with production settings
 RUN sed -i 's/APP_NAME=Laravel/APP_NAME="Brgy. Sikatuna Village IMS"/' .env && \
-    sed -i 's|APP_URL=http://localhost|APP_URL=https://barangay-management-system-wc5e.onrender.com|' .env
+    sed -i 's|APP_KEY=base64:placeholder|APP_KEY=base64:3gGQ4QLVbL3hl0JBcLZBUGWte2eOuKilirRHIPuOOFM=|' .env
 
-# Try package discovery now that everything is set up
-RUN php artisan package:discover --ansi || echo "Package discovery failed but continuing"
+# Package discovery
+RUN php artisan package:discover --ansi || echo "Package discovery failed"
 
-# Run migrations
-RUN php artisan migrate --force || echo "Migrations failed, will create tables manually"
+# Try migrations first
+RUN php artisan migrate --force || echo "Migrations failed, creating tables manually"
 
-# Create tables manually
+# Create users table manually
 RUN printf '%s\n' \
     'CREATE TABLE IF NOT EXISTS users (' \
     'id TEXT PRIMARY KEY,' \
@@ -98,8 +94,32 @@ RUN printf '%s\n' \
 # Create personal_access_tokens table
 RUN sqlite3 database/database.sqlite 'CREATE TABLE IF NOT EXISTS personal_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, tokenable_type TEXT, tokenable_id TEXT, name TEXT, token TEXT UNIQUE, abilities TEXT, last_used_at TEXT, expires_at TEXT, created_at TEXT, updated_at TEXT);'
 
-# Create admin user
-RUN sqlite3 database/database.sqlite "INSERT OR IGNORE INTO users (id, username, email, password, first_name, last_name, role, department, is_active, is_verified, email_verified_at, created_at, updated_at) VALUES ('admin-001', 'admin', 'admin@sikatuna.gov.ph', '\$2y\$12\$LQv3c1yqBwrf68.Js3k5We4T1FPfxK7zF7w/KlKLI8vLzN9bIE7VK', 'Admin', 'User', 'SUPER_ADMIN', 'ADMINISTRATION', 1, 1, datetime('now'), datetime('now'), datetime('now'));"
+# Create admin user using PHP script (avoids escaping issues)
+RUN echo '<?php' > create_admin.php && \
+    echo 'require_once "vendor/autoload.php";' >> create_admin.php && \
+    echo '$app = require_once "bootstrap/app.php";' >> create_admin.php && \
+    echo '$app->make("Illuminate\Contracts\Console\Kernel")->bootstrap();' >> create_admin.php && \
+    echo 'use App\Models\User;' >> create_admin.php && \
+    echo 'try {' >> create_admin.php && \
+    echo '  User::create([' >> create_admin.php && \
+    echo '    "id" => "admin-001",' >> create_admin.php && \
+    echo '    "username" => "admin",' >> create_admin.php && \
+    echo '    "email" => "admin@sikatuna.gov.ph",' >> create_admin.php && \
+    echo '    "password" => "password123",' >> create_admin.php && \
+    echo '    "first_name" => "Admin",' >> create_admin.php && \
+    echo '    "last_name" => "User",' >> create_admin.php && \
+    echo '    "role" => "SUPER_ADMIN",' >> create_admin.php && \
+    echo '    "department" => "ADMINISTRATION",' >> create_admin.php && \
+    echo '    "is_active" => true,' >> create_admin.php && \
+    echo '    "is_verified" => true,' >> create_admin.php && \
+    echo '    "email_verified_at" => now()' >> create_admin.php && \
+    echo '  ]);' >> create_admin.php && \
+    echo '  echo "Admin user created successfully";' >> create_admin.php && \
+    echo '} catch (Exception $e) {' >> create_admin.php && \
+    echo '  echo "Error: " . $e->getMessage();' >> create_admin.php && \
+    echo '}' >> create_admin.php && \
+    php create_admin.php && \
+    rm create_admin.php
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html && \
