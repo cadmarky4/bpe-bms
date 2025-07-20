@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --mode production",
     "build-with-types": "tsc -b && vite build",
     "lint": "npx gts lint",
     "preview": "vite preview",
