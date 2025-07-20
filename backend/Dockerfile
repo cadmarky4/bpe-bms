@@ -28,7 +28,7 @@ WORKDIR /var/www/html
 # Copy application
 COPY . .
 
-# Setup database and dependencies
+# Setup database
 RUN touch database/database.sqlite && chmod 777 database/database.sqlite
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
@@ -37,23 +37,41 @@ RUN composer install --no-dev --optimize-autoloader
 
 RUN php artisan key:generate --force || true
 
-# Debug: Check if database file exists
-RUN ls -la database/
+# Create a simple SQL script file
+RUN echo 'CREATE TABLE IF NOT EXISTS users (' > create_users.sql && \
+    echo 'id TEXT PRIMARY KEY,' >> create_users.sql && \
+    echo 'username TEXT UNIQUE NOT NULL,' >> create_users.sql && \
+    echo 'email TEXT UNIQUE NOT NULL,' >> create_users.sql && \
+    echo 'password TEXT NOT NULL,' >> create_users.sql && \
+    echo 'first_name TEXT NOT NULL,' >> create_users.sql && \
+    echo 'last_name TEXT NOT NULL,' >> create_users.sql && \
+    echo 'middle_name TEXT,' >> create_users.sql && \
+    echo 'phone TEXT,' >> create_users.sql && \
+    echo 'role TEXT NOT NULL,' >> create_users.sql && \
+    echo 'department TEXT NOT NULL,' >> create_users.sql && \
+    echo 'position TEXT,' >> create_users.sql && \
+    echo 'employee_id TEXT,' >> create_users.sql && \
+    echo 'is_active INTEGER DEFAULT 1,' >> create_users.sql && \
+    echo 'is_verified INTEGER DEFAULT 0,' >> create_users.sql && \
+    echo 'notes TEXT,' >> create_users.sql && \
+    echo 'resident_id TEXT,' >> create_users.sql && \
+    echo 'created_by TEXT,' >> create_users.sql && \
+    echo 'updated_by TEXT,' >> create_users.sql && \
+    echo 'last_login_at TEXT,' >> create_users.sql && \
+    echo 'email_verified_at TEXT,' >> create_users.sql && \
+    echo 'created_at TEXT DEFAULT (datetime("now")),' >> create_users.sql && \
+    echo 'updated_at TEXT DEFAULT (datetime("now")),' >> create_users.sql && \
+    echo 'deleted_at TEXT' >> create_users.sql && \
+    echo ');' >> create_users.sql
 
-# Debug: Check migration files
-RUN ls -la database/migrations/
+# Execute the SQL script
+RUN sqlite3 database/database.sqlite < create_users.sql && rm create_users.sql
 
-# Run migrations with verbose output
-RUN php artisan migrate --force --verbose || echo "Migration failed"
+# Create personal_access_tokens table
+RUN sqlite3 database/database.sqlite 'CREATE TABLE IF NOT EXISTS personal_access_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, tokenable_type TEXT NOT NULL, tokenable_id TEXT NOT NULL, name TEXT NOT NULL, token TEXT UNIQUE NOT NULL, abilities TEXT, last_used_at TEXT, expires_at TEXT, created_at TEXT DEFAULT (datetime("now")), updated_at TEXT DEFAULT (datetime("now")));'
 
-# Debug: Check if users table exists
-RUN sqlite3 database/database.sqlite ".tables" || echo "Could not check tables"
-
-# Debug: Show migration status
-RUN php artisan migrate:status || echo "Could not check migration status"
-
-# Run seeder only if migration worked
-RUN php artisan db:seed --class=UserSeeder --force || echo "Seeder failed"
+# Create admin user with bcrypt hash for "password123"
+RUN sqlite3 database/database.sqlite "INSERT OR IGNORE INTO users (id, username, email, password, first_name, last_name, role, department, is_active, is_verified, email_verified_at, created_at, updated_at) VALUES ('admin-001', 'admin', 'admin@sikatuna.gov.ph', '\$2y\$12\$LQv3c1yqBwrf68.Js3k5We4T1FPfxK7zF7w/KlKLI8vLzN9bIE7VK', 'Admin', 'User', 'SUPER_ADMIN', 'ADMINISTRATION', 1, 1, datetime('now'), datetime('now'), datetime('now'));"
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
@@ -63,13 +81,7 @@ RUN chown -R www-data:www-data /var/www/html \
 # Configure Apache
 RUN a2enmod rewrite
 
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+RUN echo '<VirtualHost *:80>\nDocumentRoot /var/www/html/public\n<Directory /var/www/html/public>\nAllowOverride All\nRequire all granted\n</Directory>\n</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 80
 
