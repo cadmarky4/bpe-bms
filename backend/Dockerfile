@@ -37,10 +37,23 @@ RUN composer install --no-dev --optimize-autoloader
 
 RUN php artisan key:generate --force || true
 
-RUN php artisan migrate --force || true
+# Debug: Check if database file exists
+RUN ls -la database/
 
-# Run the existing UserSeeder
-RUN php artisan db:seed --class=UserSeeder --force || true
+# Debug: Check migration files
+RUN ls -la database/migrations/
+
+# Run migrations with verbose output
+RUN php artisan migrate --force --verbose || echo "Migration failed"
+
+# Debug: Check if users table exists
+RUN sqlite3 database/database.sqlite ".tables" || echo "Could not check tables"
+
+# Debug: Show migration status
+RUN php artisan migrate:status || echo "Could not check migration status"
+
+# Run seeder only if migration worked
+RUN php artisan db:seed --class=UserSeeder --force || echo "Seeder failed"
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
